@@ -15,9 +15,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Download required NLTK data
-nltk.download('stopwords', quiet=True)
-nltk.download('wordnet', quiet=True)
+@st.cache_resource
+def download_nltk_data():
+    """Download required NLTK data only once"""
+    nltk.download('stopwords', quiet=True)
+    nltk.download('wordnet', quiet=True)
+    nltk.download('omw-1.4', quiet=True) # Often required alongside wordnet
+
+download_nltk_data()
 
 stop_words = set(stopwords.words('english'))
 lemmatizer = WordNetLemmatizer()
@@ -109,51 +114,56 @@ if uploaded_file is not None:
         with tab2:
             st.subheader("Data Preprocessing & Model Training")
             
-            progress = st.progress(0)
-            
-            # Preprocessing
-            st.write("🔄 Processing text data...")
-            df['cleaned_text'] = df['text'].apply(advanced_clean_text)
-            df['label'] = df['spam'].astype(int)
-            progress.progress(25)
-            
-            # Feature Extraction
-            st.write("📝 Extracting TF-IDF features...")
-            tfidf = TfidfVectorizer(max_features=max_features, stop_words='english', ngram_range=(1, 2))
-            X = tfidf.fit_transform(df['cleaned_text'])
-            y = df['label']
-            progress.progress(50)
-            
-            # Train-Test Split
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
-            
-            # Train Multiple Models
-            st.write("🤖 Training multiple models...")
-            models = {
-                'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
-                'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
-                'SVM (Linear)': SVC(kernel='linear', probability=True, random_state=42)
-            }
-            
-            trained_models = {}
-            model_scores = {}
-            
-            for model_name, model in models.items():
-                model.fit(X_train, y_train)
-                trained_models[model_name] = model
-                y_pred = model.predict(X_test)
-                accuracy = accuracy_score(y_test, y_pred)
-                model_scores[model_name] = accuracy
-            
-            progress.progress(100)
-            st.success("✅ Training complete!")
-            
-            # Store in session state for tab3 and tab4
-            st.session_state.trained_models = trained_models
-            st.session_state.X_test = X_test
-            st.session_state.y_test = y_test
-            st.session_state.tfidf = tfidf
-            st.session_state.model_scores = model_scores
+            if st.button("Train Models"):
+                progress = st.progress(0)
+                
+                # Preprocessing
+                st.write("🔄 Processing text data...")
+                df['cleaned_text'] = df['text'].apply(advanced_clean_text)
+                df['label'] = df['spam'].astype(int)
+                progress.progress(25)
+                
+                # Feature Extraction
+                st.write("📝 Extracting TF-IDF features...")
+                tfidf = TfidfVectorizer(max_features=max_features, stop_words='english', ngram_range=(1, 2))
+                X = tfidf.fit_transform(df['cleaned_text'])
+                y = df['label']
+                progress.progress(50)
+                
+                # Train-Test Split
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+                
+                # Train Multiple Models
+                st.write("🤖 Training multiple models...")
+                models = {
+                    'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
+                    'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
+                    'SVM (Linear)': SVC(kernel='linear', probability=True, random_state=42)
+                }
+                
+                trained_models = {}
+                model_scores = {}
+                
+                for model_name, model in models.items():
+                    model.fit(X_train, y_train)
+                    trained_models[model_name] = model
+                    y_pred = model.predict(X_test)
+                    accuracy = accuracy_score(y_test, y_pred)
+                    model_scores[model_name] = accuracy
+                
+                progress.progress(100)
+                st.success("✅ Training complete!")
+                
+                # Store in session state for tab3 and tab4
+                st.session_state.trained_models = trained_models
+                st.session_state.X_test = X_test
+                st.session_state.y_test = y_test
+                st.session_state.tfidf = tfidf
+                st.session_state.model_scores = model_scores
+            elif 'trained_models' in st.session_state:
+                st.success("✅ Models are already trained! You can now view the results or test emails.")
+            else:
+                st.info("Click the button above to begin training the models.")
         
         with tab3:
             st.subheader("📊 Model Performance Comparison")
@@ -248,10 +258,3 @@ if uploaded_file is not None:
                 st.warning("⚠️ Please train models first in the 'Model Training' tab")
     else:
         st.error("❌ CSV must contain 'text' and 'spam' columns")
-
-
-
-
-
-
-
