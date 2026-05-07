@@ -87,93 +87,96 @@ if uploaded_file is not None:
     if 'text' in df.columns and 'spam' in df.columns:
         
         # Tabs for different sections
-        tab1, tab2, tab3, tab4 = st.tabs(["📊 Dataset", "🎯 Model Training", "📈 Results", "🧪 Test Email"])
+        tab1, tab2, tab3 = st.tabs(["📊 Dataset Overview", "🎯 Training & Evaluation", "🧪 Live Testing"])
         
         with tab1:
-            st.subheader("Dataset Overview")
+            st.subheader("📊 Dataset Insights")
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Total Emails", len(df))
+                st.metric("Total Emails", f"{len(df):,}")
             with col2:
                 spam_count = (df['spam'] == 1).sum()
-                st.metric("Spam Emails", spam_count)
+                st.metric("Spam Emails", f"{spam_count:,}", f"{(spam_count/len(df)):.1%}")
             with col3:
                 ham_count = (df['spam'] == 0).sum()
-                st.metric("Ham Emails", ham_count)
+                st.metric("Ham Emails", f"{ham_count:,}", f"{(ham_count/len(df)):.1%}")
             
-            st.write("**Label Distribution:**")
-            fig, ax = plt.subplots()
-            df['spam'].value_counts().plot(kind='bar', ax=ax, color=['#2ecc71', '#e74c3c'])
-            ax.set_xticklabels(['Ham (0)', 'Spam (1)'], rotation=0)
-            ax.set_ylabel('Count')
-            st.pyplot(fig)
+            st.write("---")
+            col_a, col_b = st.columns([1, 2])
+            with col_a:
+                st.write("**Label Distribution**")
+                fig, ax = plt.subplots(figsize=(5, 4))
+                df['spam'].value_counts().plot(kind='bar', ax=ax, color=['#2ecc71', '#e74c3c'])
+                ax.set_xticklabels(['Ham (0)', 'Spam (1)'], rotation=0)
+                ax.set_ylabel('Count')
+                st.pyplot(fig)
             
-            st.write("**Sample Data:**")
-            st.dataframe(df.head(10))
+            with col_b:
+                st.write("**Data Preview**")
+                st.dataframe(df.head(10), use_container_width=True)
         
         with tab2:
-            st.subheader("Data Preprocessing & Model Training")
+            st.subheader("🎯 Model Training & Performance")
             
-            if st.button("Train Models"):
-                progress = st.progress(0)
-                
-                # Preprocessing
-                st.write("🔄 Processing text data...")
-                df['cleaned_text'] = df['text'].apply(advanced_clean_text)
-                df['label'] = df['spam'].astype(int)
-                progress.progress(25)
-                
-                # Feature Extraction
-                st.write("📝 Extracting TF-IDF features...")
-                tfidf = TfidfVectorizer(max_features=max_features, stop_words='english', ngram_range=(1, 2))
-                X = tfidf.fit_transform(df['cleaned_text'])
-                y = df['label']
-                progress.progress(50)
-                
-                # Train-Test Split
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
-                
-                # Train Multiple Models
-                st.write("🤖 Training multiple models...")
-                models = {
-                    'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
-                    'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
-                    'SVM (Linear)': SVC(kernel='linear', probability=True, random_state=42)
-                }
-                
-                trained_models = {}
-                model_scores = {}
-                
-                for model_name, model in models.items():
-                    model.fit(X_train, y_train)
-                    trained_models[model_name] = model
-                    y_pred = model.predict(X_test)
-                    accuracy = accuracy_score(y_test, y_pred)
-                    model_scores[model_name] = accuracy
-                
-                progress.progress(100)
-                st.success("✅ Training complete!")
-                
-                # Store in session state for tab3 and tab4
-                st.session_state.trained_models = trained_models
-                st.session_state.X_test = X_test
-                st.session_state.y_test = y_test
-                st.session_state.tfidf = tfidf
-                st.session_state.model_scores = model_scores
-            elif 'trained_models' in st.session_state:
-                st.success("✅ Models are already trained! You can now view the results or test emails.")
-            else:
-                st.info("Click the button above to begin training the models.")
-        
-        with tab3:
-            st.subheader("📊 Model Performance Comparison")
-            
+            col_train, col_info = st.columns([1, 2])
+            with col_train:
+                if st.button("🚀 Start Training Pipeline", use_container_width=True):
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    # Preprocessing
+                    status_text.text("🔄 Cleaning text data...")
+                    df['cleaned_text'] = df['text'].apply(advanced_clean_text)
+                    df['label'] = df['spam'].astype(int)
+                    progress_bar.progress(25)
+                    
+                    # Feature Extraction
+                    status_text.text("📝 Vectorizing with TF-IDF...")
+                    tfidf = TfidfVectorizer(max_features=max_features, stop_words='english', ngram_range=(1, 2))
+                    X = tfidf.fit_transform(df['cleaned_text'])
+                    y = df['label']
+                    progress_bar.progress(50)
+                    
+                    # Train-Test Split
+                    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+                    
+                    # Train Multiple Models
+                    status_text.text("🤖 Training Ensemble of Models...")
+                    models = {
+                        'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
+                        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
+                        'SVM (Linear)': SVC(kernel='linear', probability=True, random_state=42)
+                    }
+                    
+                    trained_models = {}
+                    for model_name, model in models.items():
+                        model.fit(X_train, y_train)
+                        trained_models[model_name] = model
+                    
+                    progress_bar.progress(100)
+                    status_text.success("✅ Training Pipeline Complete!")
+                    
+                    # Store in session state
+                    st.session_state.trained_models = trained_models
+                    st.session_state.X_test = X_test
+                    st.session_state.y_test = y_test
+                    st.session_state.tfidf = tfidf
+                    st.rerun()
+
+            with col_info:
+                if 'trained_models' not in st.session_state:
+                    st.info("Configure your settings in the sidebar and click the button to train the spam detection models.")
+                else:
+                    st.success("✅ Models are trained and ready for evaluation.")
+
             if 'trained_models' in st.session_state:
+                st.write("---")
+                st.subheader("📈 Comparative Analysis")
+                
                 models = st.session_state.trained_models
                 X_test = st.session_state.X_test
                 y_test = st.session_state.y_test
                 
-                # Model comparison table
                 results = []
                 for model_name, model in models.items():
                     y_pred = model.predict(X_test)
@@ -189,16 +192,18 @@ if uploaded_file is not None:
                     })
                 
                 results_df = pd.DataFrame(results)
-                st.write("**Performance Metrics:**")
-                st.dataframe(results_df.style.highlight_max(axis=0), use_container_width=True)
+                st.dataframe(results_df.style.highlight_max(axis=0, subset=['Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC']).format(precision=4), use_container_width=True)
                 
-                # Select best model for visualization
+                # Visualizations for Best Model
                 best_model_name = results_df.loc[results_df['F1-Score'].idxmax(), 'Model']
                 best_model = models[best_model_name]
                 y_pred = best_model.predict(X_test)
                 y_proba = best_model.predict_proba(X_test)[:, 1]
                 
-                st.write(f"\n**Best Model: {best_model_name}**")
+                st.session_state.best_model = best_model
+                st.session_state.best_model_name = best_model_name
+                
+                st.markdown(f"### 🏆 Champion Model: **{best_model_name}**")
                 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -206,16 +211,11 @@ if uploaded_file is not None:
                 with col2:
                     plot_roc_curve(y_test, y_proba, best_model_name)
                 
-                # Classification Report
-                st.write("**Detailed Classification Report:**")
-                report = classification_report(y_test, y_pred, output_dict=True)
-                report_df = pd.DataFrame(report).transpose()
-                st.dataframe(report_df)
-                
-                st.session_state.best_model = best_model
-                st.session_state.best_model_name = best_model_name
+                with st.expander("📄 View Detailed Classification Report"):
+                    report = classification_report(y_test, y_pred, output_dict=True)
+                    st.table(pd.DataFrame(report).transpose())
         
-        with tab4:
+        with tab3:
             st.subheader("🧪 Test Email on Best Model")
             
             if 'best_model' in st.session_state:
@@ -255,6 +255,6 @@ if uploaded_file is not None:
                             ax.set_xlim(0, 1)
                             st.pyplot(fig)
             else:
-                st.warning("⚠️ Please train models first in the 'Model Training' tab")
+                st.warning("⚠️ Please train models first in the 'Training & Evaluation' tab")
     else:
         st.error("❌ CSV must contain 'text' and 'spam' columns")
