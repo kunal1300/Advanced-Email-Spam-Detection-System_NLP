@@ -234,26 +234,34 @@ if uploaded_file is not None:
                     prediction = model.predict(email_tfidf)[0]
                     probability = model.predict_proba(email_tfidf)[0]
                     
-                    col1, col2 = st.columns(2)
+                    col1, col2 = st.columns([1, 1])
                     
-                    if prediction == 1:
-                        with col1:
-                            st.error(f"🚨 SPAM DETECTED")
-                            st.write(f"Confidence: **{probability[1]:.2%}**")
-                        with col2:
-                            fig, ax = plt.subplots()
-                            ax.barh(['Spam', 'Ham'], probability, color=['#e74c3c', '#2ecc71'])
-                            ax.set_xlim(0, 1)
-                            st.pyplot(fig)
-                    else:
-                        with col1:
-                            st.success(f"✅ LEGITIMATE EMAIL")
-                            st.write(f"Confidence: **{probability[0]:.2%}**")
-                        with col2:
-                            fig, ax = plt.subplots()
-                            ax.barh(['Spam', 'Ham'], probability, color=['#e74c3c', '#2ecc71'])
-                            ax.set_xlim(0, 1)
-                            st.pyplot(fig)
+                    with col1:
+                        if prediction == 1:
+                            st.error(f"🚨 **Result: SPAM DETECTED**")
+                            st.write(f"The model is **{probability[1]:.2%}** confident that this email is spam.")
+                        else:
+                            st.success(f"✅ **Result: LEGITIMATE (HAM)**")
+                            st.write(f"The model is **{probability[0]:.2%}** confident that this email is legitimate.")
+                    
+                    with col2:
+                        # Fixed mapping: [0] is Ham, [1] is Spam
+                        labels = ['Legitimate (Ham)', 'Spam']
+                        probs = [probability[0], probability[1]]
+                        colors = ['#2ecc71', '#e74c3c']
+                        
+                        fig, ax = plt.subplots(figsize=(6, 3))
+                        bars = ax.barh(labels, probs, color=colors)
+                        ax.set_xlim(0, 1.1) # Extra space for labels
+                        ax.set_title("Prediction Confidence Breakdown")
+                        
+                        # Add percentage text on bars
+                        for bar in bars:
+                            width = bar.get_width()
+                            ax.text(width + 0.02, bar.get_y() + bar.get_height()/2, 
+                                    f'{width:.1%}', va='center', fontweight='bold')
+                        
+                        st.pyplot(fig)
             else:
                 st.warning("⚠️ Please train models first in the 'Training & Evaluation' tab")
     else:
